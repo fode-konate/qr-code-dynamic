@@ -7,6 +7,9 @@ import os
 
 app = Flask(__name__)
 app.secret_key = 'supersecretkey'  # nécessaire pour les messages flash
+@app.route("/list")
+def list_urls():
+    ...
 
 DB_PATH = 'urls.db'
 
