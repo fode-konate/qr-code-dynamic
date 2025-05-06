@@ -7,6 +7,12 @@
 </head>
 <body class="bg-light">
 <div class="container mt-5">
+    <a href="{{ url_for('list_urls') }}">
+    <button style="padding: 10px 20px; background-color: #007BFF; color: white; border: none; border-radius: 5px;">
+      Voir la liste des QR codes
+    </button>
+  </a>
+  
     <div class="card shadow p-4">
         <h1 class="text-center mb-4">Générateur de QR Code Dynamique</h1>
         <form method="POST" action="/generate">
