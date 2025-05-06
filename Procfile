@@ -1,1 +1,2 @@
-web: gunicorn --chdir ./ qr_dynamic:app
+web: gunicorn app:app
+
