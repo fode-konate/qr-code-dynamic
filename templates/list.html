@@ -37,9 +37,10 @@
                 <td>{{ target_url }}</td>
                 <td>
                     <a href="{{ url_for('update', unique_id=id) }}" class="btn btn-sm btn-warning">Modifier</a>
-<form action="{{ url_for('delete', unique_id=id) }}" method="post" style="display:inline;">
-    <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Supprimer ce QR code ?');">Supprimer</button>
+<form action="{{ url_for('delete', unique_id=id) }}" method="POST" style="display:inline;">
+    <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Supprimer ce QR code ?')">Supprimer</button>
 </form>
+
                 </td>
             </tr>
             {% endfor %}
