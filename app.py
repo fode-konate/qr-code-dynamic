@@ -119,6 +119,52 @@ def delete(unique_id):
     flash('QR Code supprimé.', 'success')
     return redirect(url_for('list_qr'))
 
+from werkzeug.utils import secure_filename
+
+UPLOAD_FOLDER = 'files'
+ALLOWED_EXTENSIONS = {'pdf'}
+
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+
+def allowed_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+@app.route('/upload', methods=['GET', 'POST'])
+def upload_file():
+    if request.method == 'POST':
+        if 'file' not in request.files:
+            flash('Aucun fichier envoyé.', 'danger')
+            return redirect(request.url)
+
+        file = request.files['file']
+        if file.filename == '':
+            flash('Nom de fichier vide.', 'danger')
+            return redirect(request.url)
+
+        if file and allowed_file(file.filename):
+            filename = secure_filename(file.filename)
+            path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+            file.save(path)
+
+            # Génère un identifiant court
+            unique_id = str(uuid.uuid4())[:8]
+            # URL qui redirigera vers le fichier PDF
+            target_url = url_for('download_pdf', filename=filename, _external=True)
+
+            conn = sqlite3.connect(DB_PATH)
+            c = conn.cursor()
+            c.execute('INSERT INTO urls (id, target_url) VALUES (?, ?)', (unique_id, target_url))
+            conn.commit()
+            conn.close()
+
+            flash(f'QR Code pour le PDF créé avec succès ! (ID: {unique_id})', 'success')
+            return redirect(url_for('list_qr'))
+
+        flash('Format non autorisé.', 'danger')
+        return redirect(request.url)
+
+    return render_template('upload.html')
+
     
 if __name__ == '__main__':
     app.run(debug=True)
