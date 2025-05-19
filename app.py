@@ -10,6 +10,11 @@ app.secret_key = 'supersecretkey'  # nécessaire pour les messages flash
 @app.route("/list")
 def list_urls():
     ...
+from flask import send_from_directory
+
+@app.route('/pdf/<filename>')
+def download_pdf(filename):
+    return send_from_directory('files', filename)
 
 DB_PATH = 'urls.db'
 
@@ -74,6 +79,7 @@ def redirect_dynamic(unique_id):
     else:
         return "Lien invalide ou expiré.", 404
 
+
 @app.route('/update/<unique_id>', methods=['GET', 'POST'])
 def update(unique_id):
     if request.method == 'POST':
@@ -105,6 +111,17 @@ def list_qr():
     rows = c.fetchall()
     conn.close()
     return render_template('list.html', qr_codes=rows)
+
+@app.route('/delete/<unique_id>', methods=['POST'])
+def delete(unique_id):
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.execute('DELETE FROM urls WHERE id = ?', (unique_id,))
+    conn.commit()
+    conn.close()
+    flash('QR Code supprimé.', 'success')
+    return redirect(url_for('list_qr'))
+
     
 if __name__ == '__main__':
     app.run(debug=True)
