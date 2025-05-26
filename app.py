@@ -4,9 +4,20 @@ import io
 import uuid
 import sqlite3
 import os
+from werkzeug.utils import secure_filename
+import base64
+
+UPLOAD_FOLDER = 'files'
+ALLOWED_EXTENSIONS = {'pdf'}
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+
+def allowed_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 app = Flask(__name__)
 app.secret_key = 'supersecretkey'  # nécessaire pour les messages flash
+
 from flask import send_from_directory
 
 @app.route('/pdf/<filename>')
@@ -120,10 +131,11 @@ def delete(unique_id):
     return redirect(url_for('list_qr'))
 
 from werkzeug.utils import secure_filename
+import base64
 
 UPLOAD_FOLDER = 'files'
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 ALLOWED_EXTENSIONS = {'pdf'}
-
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
 def allowed_file(filename):
@@ -133,7 +145,7 @@ def allowed_file(filename):
 def upload_file():
     if request.method == 'POST':
         if 'file' not in request.files:
-            flash('Aucun fichier envoyé.', 'danger')
+            flash('Aucun fichier sélectionné.', 'danger')
             return redirect(request.url)
 
         file = request.files['file']
@@ -143,28 +155,48 @@ def upload_file():
 
         if file and allowed_file(file.filename):
             filename = secure_filename(file.filename)
-            path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-            file.save(path)
+            file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+            file.save(file_path)
 
-            # Génère un identifiant court
-            unique_id = str(uuid.uuid4())[:8]
-            # URL qui redirigera vers le fichier PDF
-            target_url = url_for('download_pdf', filename=filename, _external=True)
+            # Crée une URL publique vers le fichier
+            file_url = request.host_url + 'pdf/' + filename
 
-            conn = sqlite3.connect(DB_PATH)
-            c = conn.cursor()
-            c.execute('INSERT INTO urls (id, target_url) VALUES (?, ?)', (unique_id, target_url))
-            conn.commit()
-            conn.close()
+            # Génère un QR code vers ce PDF
+            qr = qrcode.make(file_url)
+            buffer = io.BytesIO()
+            qr.save(buffer, format='PNG')
+            qr_base64 = base64.b64encode(buffer.getvalue()).decode('utf-8')
 
-            flash(f'QR Code pour le PDF créé avec succès ! (ID: {unique_id})', 'success')
-            return redirect(url_for('list_qr'))
+            return render_template('qr_result.html', file_url=file_url, qr_code=qr_base64)
 
-        flash('Format non autorisé.', 'danger')
+        flash("Fichier non autorisé (seuls les .pdf)", 'danger')
         return redirect(request.url)
 
     return render_template('upload.html')
 
-    
+@app.route('/upload', methods=['GET', 'POST'])
+def upload_file():
+    if request.method == 'POST':
+        file = request.files.get('file')
+        if file and allowed_file(file.filename):
+            filename = secure_filename(file.filename)
+            file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+            file.save(file_path)
+
+            file_url = request.host_url + 'pdf/' + filename
+
+            # Génération du QR code
+            qr = qrcode.make(file_url)
+            buffer = io.BytesIO()
+            qr.save(buffer, format='PNG')
+            qr_base64 = base64.b64encode(buffer.getvalue()).decode('utf-8')
+
+            return render_template('qr_result.html', file_url=file_url, qr_code=qr_base64)
+
+        flash("Seuls les fichiers PDF sont autorisés.", "danger")
+        return redirect(request.url)
+
+    return render_template('upload.html')
+
 if __name__ == '__main__':
     app.run(debug=True)
