@@ -1,4 +1,4 @@
-from flask import Flask, redirect, request, render_template, send_file, url_for, flash
+from flask import Flask, redirect, request, render_template, send_file, url_for, flash, send_from_directory
 import qrcode
 import io
 import uuid
@@ -7,24 +7,18 @@ import os
 from werkzeug.utils import secure_filename
 import base64
 
+# Configuration de Flask et du dossier d'upload
+app = Flask(__name__)
+app.secret_key = 'supersecretkey'
 UPLOAD_FOLDER = 'files'
 ALLOWED_EXTENSIONS = {'pdf'}
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
+DB_PATH = 'urls.db'
+
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
-
-app = Flask(__name__)
-app.secret_key = 'supersecretkey'  # nécessaire pour les messages flash
-
-from flask import send_from_directory
-
-@app.route('/pdf/<filename>')
-def download_pdf(filename):
-    return send_from_directory('files', filename)
-
-DB_PATH = 'urls.db'
 
 def init_db():
     if not os.path.exists(DB_PATH):
@@ -56,21 +50,15 @@ def generate():
 
     dynamic_url = request.host_url + 'redirect/' + unique_id
 
-    qr = qrcode.QRCode(
-        version=1,
-        box_size=10,
-        border=5
-    )
+    qr = qrcode.QRCode(version=1, box_size=10, border=5)
     qr.add_data(dynamic_url)
     qr.make(fit=True)
-
     img = qr.make_image(fill_color=fill_color, back_color=back_color)
 
     buf = io.BytesIO()
     img.save(buf, 'PNG')
     buf.seek(0)
 
-    # Envoie le QR code comme image mais redirige ensuite vers la liste
     flash(f"QR Code créé avec succès pour l'identifiant : {unique_id}", "success")
     return send_file(buf, mimetype='image/png', as_attachment=True, download_name='qr_code.png')
 
@@ -86,7 +74,6 @@ def redirect_dynamic(unique_id):
         return redirect(result[0])
     else:
         return "Lien invalide ou expiré.", 404
-
 
 @app.route('/update/<unique_id>', methods=['GET', 'POST'])
 def update(unique_id):
@@ -130,49 +117,9 @@ def delete(unique_id):
     flash('QR Code supprimé.', 'success')
     return redirect(url_for('list_qr'))
 
-from werkzeug.utils import secure_filename
-import base64
-
-UPLOAD_FOLDER = 'files'
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-ALLOWED_EXTENSIONS = {'pdf'}
-app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
-
-def allowed_file(filename):
-    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
-
-@app.route('/upload', methods=['GET', 'POST'])
-def upload_file():
-    if request.method == 'POST':
-        if 'file' not in request.files:
-            flash('Aucun fichier sélectionné.', 'danger')
-            return redirect(request.url)
-
-        file = request.files['file']
-        if file.filename == '':
-            flash('Nom de fichier vide.', 'danger')
-            return redirect(request.url)
-
-        if file and allowed_file(file.filename):
-            filename = secure_filename(file.filename)
-            file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-            file.save(file_path)
-
-            # Crée une URL publique vers le fichier
-            file_url = request.host_url + 'pdf/' + filename
-
-            # Génère un QR code vers ce PDF
-            qr = qrcode.make(file_url)
-            buffer = io.BytesIO()
-            qr.save(buffer, format='PNG')
-            qr_base64 = base64.b64encode(buffer.getvalue()).decode('utf-8')
-
-            return render_template('qr_result.html', file_url=file_url, qr_code=qr_base64)
-
-        flash("Fichier non autorisé (seuls les .pdf)", 'danger')
-        return redirect(request.url)
-
-    return render_template('upload.html')
+@app.route('/pdf/<filename>')
+def download_pdf(filename):
+    return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
 
 @app.route('/upload', methods=['GET', 'POST'])
 def upload_file():
@@ -183,9 +130,16 @@ def upload_file():
             file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
             file.save(file_path)
 
-            file_url = request.host_url + 'pdf/' + filename
+            file_url = url_for('download_pdf', filename=filename, _external=True)
+            unique_id = str(uuid.uuid4())[:8]
 
-            # Génération du QR code
+            # Enregistrement en base
+            conn = sqlite3.connect(DB_PATH)
+            c = conn.cursor()
+            c.execute('INSERT INTO urls (id, target_url) VALUES (?, ?)', (unique_id, file_url))
+            conn.commit()
+            conn.close()
+
             qr = qrcode.make(file_url)
             buffer = io.BytesIO()
             qr.save(buffer, format='PNG')
