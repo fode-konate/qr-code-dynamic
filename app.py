@@ -124,30 +124,43 @@ def download_pdf(filename):
 @app.route('/upload', methods=['GET', 'POST'])
 def upload_file():
     if request.method == 'POST':
-        file = request.files.get('file')
+        if 'file' not in request.files:
+            flash('Aucun fichier envoyé.', 'danger')
+            return redirect(request.url)
+
+        file = request.files['file']
+        if file.filename == '':
+            flash('Nom de fichier vide.', 'danger')
+            return redirect(request.url)
+
         if file and allowed_file(file.filename):
             filename = secure_filename(file.filename)
             file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
             file.save(file_path)
 
-            file_url = url_for('download_pdf', filename=filename, _external=True)
+            # Génère un identifiant court
             unique_id = str(uuid.uuid4())[:8]
 
-            # Enregistrement en base
+            # Crée une URL publique vers le fichier
+            file_url = url_for('download_pdf', filename=filename, _external=True)
+
+            # Enregistre dans la base de données
             conn = sqlite3.connect(DB_PATH)
             c = conn.cursor()
             c.execute('INSERT INTO urls (id, target_url) VALUES (?, ?)', (unique_id, file_url))
             conn.commit()
             conn.close()
 
-            qr = qrcode.make(file_url)
-            buffer = io.BytesIO()
-            qr.save(buffer, format='PNG')
-            qr_base64 = base64.b64encode(buffer.getvalue()).decode('utf-8')
+            # Génère un QR code pour le PDF
+            qr = qrcode.make(request.host_url + 'redirect/' + unique_id)
+            buf = io.BytesIO()
+            qr.save(buf, format='PNG')
+            buf.seek(0)
 
-            return render_template('qr_result.html', file_url=file_url, qr_code=qr_base64)
+            flash(f'PDF uploadé et QR Code généré avec succès ! (ID : {unique_id})', 'success')
+            return send_file(buf, mimetype='image/png', as_attachment=True, download_name='qr_code.png')
 
-        flash("Seuls les fichiers PDF sont autorisés.", "danger")
+        flash('Fichier non autorisé.', 'danger')
         return redirect(request.url)
 
     return render_template('upload.html')
