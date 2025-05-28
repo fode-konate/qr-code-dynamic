@@ -26,7 +26,9 @@
 </head>
 <body class="bg-light">
   <div class="text-center my-3">
-    <img src="{{ url_for('static', filename='images/logo_stgc.png') }}" alt="Logo STGC" style="height: 80px;">
+    <a href="{{ url_for('home') }}">
+      <img src="{{ url_for('static', filename='images/logo_stgc.png') }}" alt="Logo STGC" style="height: 80px;">
+    </a>
     <div class="text-end me-3 mt-2">
       <button onclick="toggleDarkMode()" class="btn btn-secondary">🌙 Mode sombre</button>
     </div>
