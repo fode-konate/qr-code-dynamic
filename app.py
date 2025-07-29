@@ -6,8 +6,9 @@ import sqlite3
 import os
 from werkzeug.utils import secure_filename
 import base64
+from datetime import datetime
+import csv
 
-# Configuration de Flask et du dossier d'upload
 app = Flask(__name__)
 app.secret_key = 'supersecretkey'
 UPLOAD_FOLDER = 'files'
@@ -21,12 +22,20 @@ def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 def init_db():
-    if not os.path.exists(DB_PATH):
-        conn = sqlite3.connect(DB_PATH)
-        c = conn.cursor()
-        c.execute('CREATE TABLE urls (id TEXT PRIMARY KEY, target_url TEXT)')
-        conn.commit()
-        conn.close()
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS urls (
+            id TEXT PRIMARY KEY,
+            target_url TEXT,
+            folder TEXT DEFAULT 'Général',
+            filename TEXT,
+            created_at TEXT,
+            deleted INTEGER DEFAULT 0
+        )
+    ''')
+    conn.commit()
+    conn.close()
 
 init_db()
 
@@ -37,21 +46,24 @@ def home():
 @app.route('/generate', methods=['POST'])
 def generate():
     target_url = request.form['target_url']
-    fill_color = request.form['fill_color']
-    back_color = request.form['back_color']
+    folder = request.form.get('folder', 'Général')
+    fill_color = request.form.get('fill_color', '#000000')
+    back_color = request.form.get('back_color', '#FFFFFF')
 
     unique_id = str(uuid.uuid4())[:8]
+    created_at = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
-    c.execute('INSERT INTO urls (id, target_url) VALUES (?, ?)', (unique_id, target_url))
+    c.execute('''
+        INSERT INTO urls (id, target_url, folder, created_at)
+        VALUES (?, ?, ?, ?)
+    ''', (unique_id, target_url, folder, created_at))
     conn.commit()
     conn.close()
 
-    dynamic_url = request.host_url + 'redirect/' + unique_id
-
-    qr = qrcode.QRCode(version=1, box_size=10, border=5)
-    qr.add_data(dynamic_url)
+    qr = qrcode.QRCode(box_size=10, border=4)
+    qr.add_data(request.host_url + 'redirect/' + unique_id)
     qr.make(fit=True)
     img = qr.make_image(fill_color=fill_color, back_color=back_color)
 
@@ -59,62 +71,43 @@ def generate():
     img.save(buf, 'PNG')
     buf.seek(0)
 
-    flash(f"QR Code créé avec succès pour l'identifiant : {unique_id}", "success")
-    return send_file(buf, mimetype='image/png', as_attachment=True, download_name='qr_code.png')
+    flash(f'QR Code créé pour : {unique_id}', 'success')
+    return send_file(buf, mimetype='image/png', as_attachment=True, download_name=f'{unique_id}.png')
 
 @app.route('/redirect/<unique_id>')
 def redirect_dynamic(unique_id):
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
-    c.execute('SELECT target_url FROM urls WHERE id = ?', (unique_id,))
+    c.execute('SELECT target_url FROM urls WHERE id = ? AND deleted = 0', (unique_id,))
     result = c.fetchone()
     conn.close()
-
     if result:
         return redirect(result[0])
-    else:
-        return "Lien invalide ou expiré.", 404
-
-@app.route('/update/<unique_id>', methods=['GET', 'POST'])
-def update(unique_id):
-    if request.method == 'POST':
-        new_url = request.form['new_url']
-        conn = sqlite3.connect(DB_PATH)
-        c = conn.cursor()
-        c.execute('UPDATE urls SET target_url = ? WHERE id = ?', (new_url, unique_id))
-        conn.commit()
-        conn.close()
-        flash('URL mise à jour !', 'success')
-        return redirect(url_for('list_qr'))
-    
-    conn = sqlite3.connect(DB_PATH)
-    c = conn.cursor()
-    c.execute('SELECT target_url FROM urls WHERE id = ?', (unique_id,))
-    result = c.fetchone()
-    conn.close()
-
-    if result:
-        return render_template('update.html', unique_id=unique_id, target_url=result[0])
-    else:
-        return "ID non trouvé.", 404
+    return "QR Code non trouvé ou supprimé.", 404
 
 @app.route('/list')
 def list_qr():
+    selected_folder = request.args.get('folder')
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
-    c.execute('SELECT id, target_url FROM urls')
+    if selected_folder:
+        c.execute("SELECT id, target_url, folder, filename, created_at FROM urls WHERE deleted = 0 AND folder = ?", (selected_folder,))
+    else:
+        c.execute("SELECT id, target_url, folder, filename, created_at FROM urls WHERE deleted = 0")
     rows = c.fetchall()
+    c.execute("SELECT DISTINCT folder FROM urls WHERE deleted = 0")
+    folders = [row[0] for row in c.fetchall()]
     conn.close()
-    return render_template('list.html', qr_codes=rows)
+    return render_template('list.html', qr_codes=rows, folders=folders, selected_folder=selected_folder)
 
 @app.route('/delete/<unique_id>', methods=['POST'])
 def delete(unique_id):
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
-    c.execute('DELETE FROM urls WHERE id = ?', (unique_id,))
+    c.execute('UPDATE urls SET deleted = 1 WHERE id = ?', (unique_id,))
     conn.commit()
     conn.close()
-    flash('QR Code supprimé.', 'success')
+    flash('QR Code déplacé à la corbeille.', 'success')
     return redirect(url_for('list_qr'))
 
 @app.route('/pdf/<filename>')
@@ -124,46 +117,92 @@ def download_pdf(filename):
 @app.route('/upload', methods=['GET', 'POST'])
 def upload_file():
     if request.method == 'POST':
-        if 'file' not in request.files:
-            flash('Aucun fichier envoyé.', 'danger')
+        file = request.files.get('file')
+        folder = request.form.get('folder', 'Général')
+        if not file or file.filename == '':
+            flash('Aucun fichier sélectionné.', 'danger')
             return redirect(request.url)
-
-        file = request.files['file']
-        if file.filename == '':
-            flash('Nom de fichier vide.', 'danger')
-            return redirect(request.url)
-
         if file and allowed_file(file.filename):
             filename = secure_filename(file.filename)
-            file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-            file.save(file_path)
+            filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+            file.save(filepath)
 
-            # Génère un identifiant court
             unique_id = str(uuid.uuid4())[:8]
-
-            # Crée une URL publique vers le fichier
             file_url = url_for('download_pdf', filename=filename, _external=True)
+            created_at = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 
-            # Enregistre dans la base de données
             conn = sqlite3.connect(DB_PATH)
             c = conn.cursor()
-            c.execute('INSERT INTO urls (id, target_url) VALUES (?, ?)', (unique_id, file_url))
+            c.execute('''
+                INSERT INTO urls (id, target_url, folder, filename, created_at)
+                VALUES (?, ?, ?, ?, ?)
+            ''', (unique_id, file_url, folder, filename, created_at))
             conn.commit()
             conn.close()
 
-            # Génère un QR code pour le PDF
             qr = qrcode.make(request.host_url + 'redirect/' + unique_id)
             buf = io.BytesIO()
-            qr.save(buf, format='PNG')
+            qr.save(buf, 'PNG')
             buf.seek(0)
 
-            flash(f'PDF uploadé et QR Code généré avec succès ! (ID : {unique_id})', 'success')
-            return send_file(buf, mimetype='image/png', as_attachment=True, download_name='qr_code.png')
+            flash('PDF uploadé et QR Code généré avec succès !', 'success')
+            return send_file(buf, mimetype='image/png', as_attachment=True, download_name=f'{unique_id}.png')
 
         flash('Fichier non autorisé.', 'danger')
         return redirect(request.url)
-
     return render_template('upload.html')
+
+@app.route('/update/<unique_id>', methods=['GET', 'POST'])
+def update(unique_id):
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.execute("SELECT target_url, folder FROM urls WHERE id = ?", (unique_id,))
+    record = c.fetchone()
+    conn.close()
+    if not record:
+        return "QR Code non trouvé.", 404
+
+    if request.method == 'POST':
+        new_url = request.form['new_url']
+        folder = request.form.get('folder', 'Général')
+        filename = None
+
+        if 'file' in request.files and request.files['file'].filename != '':
+            file = request.files['file']
+            if allowed_file(file.filename):
+                filename = secure_filename(file.filename)
+                filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+                file.save(filepath)
+                new_url = url_for('download_pdf', filename=filename, _external=True)
+
+        conn = sqlite3.connect(DB_PATH)
+        c = conn.cursor()
+        if filename:
+            c.execute('UPDATE urls SET target_url = ?, folder = ?, filename = ? WHERE id = ?', (new_url, folder, filename, unique_id))
+        else:
+            c.execute('UPDATE urls SET target_url = ?, folder = ? WHERE id = ?', (new_url, folder, unique_id))
+        conn.commit()
+        conn.close()
+        flash('QR Code mis à jour.', 'success')
+        return redirect(url_for('list_qr'))
+
+    return render_template('update.html', unique_id=unique_id, target_url=record[0], folder=record[1])
+
+@app.route('/export')
+def export_csv():
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.execute('SELECT id, target_url, folder, filename, created_at FROM urls WHERE deleted = 0')
+    rows = c.fetchall()
+    conn.close()
+
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(['ID', 'URL', 'Dossier', 'Fichier', 'Créé le'])
+    writer.writerows(rows)
+    output.seek(0)
+
+    return send_file(io.BytesIO(output.getvalue().encode()), mimetype='text/csv', as_attachment=True, download_name='qr_codes.csv')
 
 if __name__ == '__main__':
     app.run(debug=True)
