@@ -1,4 +1,4 @@
-from flask import Flask, redirect, request, render_template, send_file, url_for, flash, send_from_directory, jsonify
+from flask import Flask, redirect, request, render_template, send_file, url_for, flash, send_from_directory
 import qrcode
 import io
 import uuid
@@ -17,22 +17,30 @@ os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 DB_PATH = 'urls.db'
 
+# Vérifie si l'extension du fichier est autorisée (PDF)
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() == 'pdf'
 
+# Initialise la base de données si elle n'existe pas
 def init_db():
-    with sqlite3.connect(DB_PATH) as conn:
+    if not os.path.exists(DB_PATH):
+        conn = sqlite3.connect(DB_PATH)
         c = conn.cursor()
-        c.execute('''CREATE TABLE IF NOT EXISTS urls (
-            id TEXT PRIMARY KEY,
-            target_url TEXT,
-            folder TEXT DEFAULT 'Général',
-            custom_id TEXT,
-            filename TEXT,
-            created_at TEXT,
-            deleted INTEGER DEFAULT 0
-        )''')
+        c.execute('''
+            CREATE TABLE urls (
+                id TEXT PRIMARY KEY,
+                custom_id TEXT,
+                target_url TEXT,
+                folder TEXT DEFAULT 'Général',
+                filename TEXT,
+                created_at TEXT,
+                deleted INTEGER DEFAULT 0
+            )
+        ''')
+        conn.commit()
+        conn.close()
 
+# Création de la base si besoin
 init_db()
 
 @app.route('/')
@@ -99,7 +107,7 @@ def upload_file():
         qr.save(buf, format='PNG')
         buf.seek(0)
 
-        flash(f"PDF téléversé et QR Code généré (ID : {unique_id})", "success")
+        flash(f"PDF téléversé et QR Code généré (ID : {unique_id})", 'success')
         return send_file(buf, mimetype='image/png', as_attachment=True, download_name='qr_code.png')
 
     return render_template('upload.html')
