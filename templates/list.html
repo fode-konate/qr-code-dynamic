@@ -59,9 +59,8 @@
   <table class="table table-striped">
     <thead>
       <tr>
-        <th>Nom</th>
         <th>Identifiant</th>
-        <th>QR Code</th>
+        <th>Nom</th>
         <th>URL Encodée</th>
         <th>Destination</th>
         <th>Dossier</th>
@@ -69,11 +68,10 @@
       </tr>
     </thead>
     <tbody>
-      {% for id, name, target_url, folder in qr_codes %}
+      {% for id, custom_id, target_url, folder in qr_codes %}
         <tr>
-          <td>{{ name or '—' }}</td>
-          <td>{{ id }}</td>
-          <td><img src="{{ url_for('show_qr', unique_id=id) }}" width="100"></td>
+          <td><a href="{{ url_for('show_qr', unique_id=id) }}" target="_blank">{{ id }}</a></td>
+          <td>{{ custom_id }}</td>
           <td><a href="{{ request.host_url }}redirect/{{ id }}" target="_blank">{{ request.host_url }}redirect/{{ id }}</a></td>
           <td>{{ target_url }}</td>
           <td>{{ folder }}</td>
