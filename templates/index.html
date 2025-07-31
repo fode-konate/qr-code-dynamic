@@ -24,7 +24,6 @@
   </style>
 </head>
 <body class="bg-light">
-
   <div class="text-center my-3">
     <a href="{{ url_for('home') }}">
       <img src="{{ url_for('static', filename='images/logo_stgc.png') }}" alt="Logo STGC" style="height: 80px;">
@@ -40,10 +39,15 @@
 
     <div class="card shadow p-4 mt-4">
       <h1 class="text-center mb-4">Générateur de QR Code Dynamique</h1>
-      <form method="POST" action="{{ url_for('generate') }}">
+      <form method="POST" action="/generate">
         <div class="mb-3">
           <label for="target_url" class="form-label">URL de destination :</label>
           <input type="url" class="form-control" id="target_url" name="target_url" placeholder="https://exemple.com" required>
+        </div>
+
+        <div class="mb-3">
+          <label for="name" class="form-label">Nom personnalisé (facultatif) :</label>
+          <input type="text" class="form-control" id="name" name="name" placeholder="ex: BrochureRH2025">
         </div>
 
         <div class="mb-3">
@@ -74,7 +78,6 @@
       document.body.classList.toggle('dark-mode');
       localStorage.setItem('dark-mode', document.body.classList.contains('dark-mode'));
     }
-
     window.onload = function () {
       if (localStorage.getItem('dark-mode') === 'true') {
         document.body.classList.add('dark-mode');
