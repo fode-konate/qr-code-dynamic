@@ -1,85 +1,23 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-  <meta charset="UTF-8">
-  <title>QR Code Dynamique</title>
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-  <style>
-    .dark-mode {
-      background-color: #121212 !important;
-      color: #ffffff !important;
-    }
-    .dark-mode .card, .dark-mode .form-control, .dark-mode .form-label,
-    .dark-mode .alert, .dark-mode .btn {
-      background-color: #2a2a2a !important;
-      color: #ffffff !important;
-      border-color: #444 !important;
-    }
-    .dark-mode a {
-      color: #90caf9;
-    }
-  </style>
+    <meta charset="UTF-8">
+    <title>Générateur de QR Code</title>
 </head>
-<body class="bg-light">
-  <div class="text-center my-3">
-    <a href="{{ url_for('home') }}">
-      <img src="{{ url_for('static', filename='images/logo_stgc.png') }}" alt="Logo STGC" style="height: 80px;">
-    </a>
-    <div class="text-end me-3 mt-2">
-      <button onclick="toggleDarkMode()" class="btn btn-secondary">🌙 Mode sombre</button>
-    </div>
-  </div>
-
-  <div class="container mt-5">
-    <a href="{{ url_for('list_qr') }}" class="btn btn-primary">📄 Voir la liste des QR codes</a>
-    <a href="{{ url_for('upload_file') }}" class="btn btn-outline-info ms-2">📤 Uploader un PDF</a>
-
-    <div class="card shadow p-4 mt-4">
-      <h1 class="text-center mb-4">Générateur de QR Code Dynamique</h1>
-      <form method="POST" action="/generate">
-        <div class="mb-3">
-          <label for="target_url" class="form-label">URL de destination :</label>
-          <input type="url" class="form-control" id="target_url" name="target_url" placeholder="https://exemple.com" required>
-        </div>
-
-        <div class="mb-3">
-          <label for="custom_id" class="form-label">Nom personnalisé (facultatif) :</label>
-          <input type="text" class="form-control" id="custom_id" name="custom_id" placeholder="ex: brochure-2025, menu1, etc.">
-        </div>
-
-        <div class="mb-3">
-          <label for="folder" class="form-label">Nom du dossier :</label>
-          <input type="text" class="form-control" id="folder" name="folder" placeholder="ex: Communication, RH, etc." value="Général">
-        </div>
-
-        <div class="row">
-          <div class="col mb-3">
-            <label for="fill_color" class="form-label">Couleur du QR code :</label>
-            <input type="color" class="form-control form-control-color" id="fill_color" name="fill_color" value="#000000">
-          </div>
-          <div class="col mb-3">
-            <label for="back_color" class="form-label">Couleur de fond :</label>
-            <input type="color" class="form-control form-control-color" id="back_color" name="back_color" value="#FFFFFF">
-          </div>
-        </div>
-
-        <div class="d-grid">
-          <button type="submit" class="btn btn-success btn-lg">🎯 Générer le QR Code</button>
-        </div>
-      </form>
-    </div>
-  </div>
-
-  <script>
-    function toggleDarkMode() {
-      document.body.classList.toggle('dark-mode');
-      localStorage.setItem('dark-mode', document.body.classList.contains('dark-mode'));
-    }
-    window.onload = function () {
-      if (localStorage.getItem('dark-mode') === 'true') {
-        document.body.classList.add('dark-mode');
-      }
-    };
-  </script>
+<body>
+    <h1>Créer un QR Code avec une URL</h1>
+    <form action="/generate" method="POST">
+        <label>URL cible :</label>
+        <input type="text" name="target_url" required><br>
+        <label>Nom (identifiant personnalisé) :</label>
+        <input type="text" name="custom_id"><br>
+        <label>Dossier :</label>
+        <input type="text" name="folder" value="Général"><br>
+        <label>Couleur de fond :</label>
+        <input type="color" name="back_color" value="#ffffff"><br>
+        <label>Couleur du QR :</label>
+        <input type="color" name="fill_color" value="#000000"><br>
+        <button type="submit">Générer</button>
+    </form>
 </body>
 </html>
