@@ -4,58 +4,39 @@
   <meta charset="UTF-8">
   <title>Uploader un PDF</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-  <style>
-    .dark-mode {
-      background-color: #121212 !important;
-      color: #ffffff !important;
-    }
-    .dark-mode .card, .dark-mode .form-control, .dark-mode .btn {
-      background-color: #2a2a2a !important;
-      color: #ffffff !important;
-      border-color: #444 !important;
-    }
-    .dark-mode a {
-      color: #90caf9;
-    }
-  </style>
 </head>
-<body class="bg-light">
-  <div class="text-center my-3">
-    <a href="{{ url_for('home') }}">
-      <img src="{{ url_for('static', filename='images/logo_stgc.png') }}" alt="Logo STGC" style="height: 80px;">
-    </a>
-    <div class="text-end me-3 mt-2">
-      <button onclick="toggleDarkMode()" class="btn btn-secondary">🌙 Mode sombre</button>
-    </div>
-  </div>
+<body style="background-color: #f8f9fa;">
 
   <div class="container mt-5">
-    <a href="{{ url_for('list_qr') }}" class="btn btn-primary">📄 Voir les QR Codes</a>
+    <a href="{{ url_for('home') }}" class="btn btn-secondary mb-3">🏠 Retour</a>
 
-    <div class="card shadow p-4 mt-4">
-      <h1 class="text-center mb-4">Uploader un fichier PDF</h1>
-      <form method="POST" action="/upload" enctype="multipart/form-data">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        {% for category, message in messages %}
+          <div class="alert alert-{{ category }}">{{ message }}</div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
+
+    <div class="card p-4 shadow" style="background-color:white;">
+      <h2 class="text-center mb-4">Uploader un fichier PDF</h2>
+      <form method="POST" enctype="multipart/form-data">
         <div class="mb-3">
-          <label for="file" class="form-label">Sélectionnez un fichier PDF :</label>
-          <input type="file" class="form-control" id="file" name="file" accept=".pdf" required>
+          <label for="file" style="font-weight:bold;">Fichier PDF :</label>
+          <input class="form-control" type="file" id="file" name="file" accept=".pdf" required>
         </div>
-        <div class="d-grid">
-          <button type="submit" class="btn btn-success">📤 Uploader et générer le QR Code</button>
+        <div class="mb-3">
+          <label for="custom_id" style="font-weight:bold;">Nom personnalisé (facultatif) :</label>
+          <input class="form-control" type="text" id="custom_id" name="custom_id">
         </div>
+        <div class="mb-3">
+          <label for="folder" style="font-weight:bold;">Nom du dossier :</label>
+          <input class="form-control" type="text" id="folder" name="folder" value="Général">
+        </div>
+        <button type="submit" class="btn btn-primary">📤 Uploader et générer QR</button>
       </form>
     </div>
   </div>
 
-  <script>
-    function toggleDarkMode() {
-      document.body.classList.toggle('dark-mode');
-      localStorage.setItem('dark-mode', document.body.classList.contains('dark-mode'));
-    }
-    window.onload = function () {
-      if (localStorage.getItem('dark-mode') === 'true') {
-        document.body.classList.add('dark-mode');
-      }
-    };
-  </script>
 </body>
 </html>

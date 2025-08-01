@@ -14,16 +14,16 @@ app.config['UPLOAD_FOLDER'] = 'files'
 app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
-# Dossier de fichiers PDF
+# Création du dossier d'upload si inexistant
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
-# Initialisation de SQLAlchemy
+# Initialisation de la base de données
 db = SQLAlchemy(app)
 
-# Définition du modèle
+# Modèle de données
 class URL(db.Model):
-    id = db.Column(db.String(8), primary_key=True)
-    custom_id = db.Column(db.String(100), unique=True, nullable=True)
+    id = db.Column(db.String(100), primary_key=True)  # correspond à custom_id
+    custom_id = db.Column(db.String(100), unique=True, nullable=False)
     target_url = db.Column(db.Text, nullable=False)
     folder = db.Column(db.String(100), default='Général')
     filename = db.Column(db.String(200), nullable=True)
@@ -34,12 +34,12 @@ class URL(db.Model):
 with app.app_context():
     db.create_all()
 
-# Page d’accueil
+# Page d'accueil
 @app.route('/')
 def home():
     return render_template('index.html')
 
-# Génération QR code pour URL
+# Génération d'un QR code pointant vers une URL
 @app.route('/generate', methods=['POST'])
 def generate():
     target_url = request.form['target_url']
@@ -48,14 +48,18 @@ def generate():
     folder = request.form.get('folder', 'Général')
     custom_id = request.form.get('custom_id') or str(uuid.uuid4())[:8]
 
-    if URL.query.filter_by(custom_id=custom_id).first():
+    if URL.query.filter_by(id=custom_id).first():
         flash("Cet identifiant est déjà utilisé.", "danger")
         return redirect(url_for('home'))
 
-    unique_id = str(uuid.uuid4())[:8]
-    dynamic_url = request.host_url + 'redirect/' + unique_id
+    dynamic_url = request.host_url + 'redirect/' + custom_id
 
-    url = URL(id=unique_id, custom_id=custom_id, target_url=target_url, folder=folder)
+    url = URL(
+        id=custom_id,
+        custom_id=custom_id,
+        target_url=target_url,
+        folder=folder
+    )
     db.session.add(url)
     db.session.commit()
 
@@ -71,7 +75,7 @@ def generate():
     flash(f"QR Code créé pour l’identifiant : {custom_id}", "success")
     return send_file(buf, mimetype='image/png', as_attachment=True, download_name='qr_code.png')
 
-# Redirection via QR code
+# Redirection dynamique
 @app.route('/redirect/<unique_id>')
 def redirect_dynamic(unique_id):
     url = URL.query.filter_by(id=unique_id, deleted=False).first()
@@ -79,7 +83,7 @@ def redirect_dynamic(unique_id):
         return redirect(url.target_url)
     return "Lien invalide ou supprimé.", 404
 
-# Upload de fichier PDF + génération QR
+# Upload de PDF + génération de QR
 @app.route('/upload', methods=['GET', 'POST'])
 def upload_file():
     if request.method == 'POST':
@@ -91,7 +95,7 @@ def upload_file():
             flash('Aucun fichier sélectionné.', 'danger')
             return redirect(request.url)
 
-        if URL.query.filter_by(custom_id=custom_id).first():
+        if URL.query.filter_by(id=custom_id).first():
             flash("Cet identifiant est déjà utilisé.", "danger")
             return redirect(request.url)
 
@@ -99,14 +103,19 @@ def upload_file():
         file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
         file.save(file_path)
 
-        unique_id = str(uuid.uuid4())[:8]
         file_url = url_for('download_pdf', filename=filename, _external=True)
 
-        new_url = URL(id=unique_id, custom_id=custom_id, target_url=file_url, folder=folder, filename=filename)
+        new_url = URL(
+            id=custom_id,
+            custom_id=custom_id,
+            target_url=file_url,
+            folder=folder,
+            filename=filename
+        )
         db.session.add(new_url)
         db.session.commit()
 
-        qr = qrcode.make(request.host_url + 'redirect/' + unique_id)
+        qr = qrcode.make(request.host_url + 'redirect/' + custom_id)
         buf = io.BytesIO()
         qr.save(buf, format='PNG')
         buf.seek(0)
@@ -116,12 +125,12 @@ def upload_file():
 
     return render_template('upload.html')
 
-# Téléchargement du PDF
+# Téléchargement de PDF
 @app.route('/pdf/<filename>')
 def download_pdf(filename):
     return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
 
-# Modification QR Code
+# Mise à jour d'un QR Code existant
 @app.route('/update/<unique_id>', methods=['GET', 'POST'])
 def update(unique_id):
     url = URL.query.filter_by(id=unique_id).first()
@@ -143,7 +152,7 @@ def update(unique_id):
 
     return render_template('update.html', unique_id=unique_id, target_url=url.target_url, folder=url.folder)
 
-# Liste QR codes
+# Liste des QR codes
 @app.route('/list')
 def list_qr():
     folder = request.args.get('folder')

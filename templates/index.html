@@ -32,6 +32,17 @@
 
   <div class="container mt-5">
     <a href="{{ url_for('list_qr') }}" class="btn btn-primary">📄 Voir la liste des QR codes</a>
+    <a href="{{ url_for('upload_file') }}" class="btn btn-outline-info ms-2">📤 Uploader un PDF</a>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        <div class="mt-4">
+          {% for category, message in messages %}
+            <div class="alert alert-{{ category }}">{{ message }}</div>
+          {% endfor %}
+        </div>
+      {% endif %}
+    {% endwith %}
 
     <div class="card shadow p-4 mt-4">
       <h1 class="text-center mb-4">Générateur de QR Code Dynamique</h1>
@@ -44,6 +55,11 @@
         <div class="mb-3">
           <label for="custom_id" class="form-label">Nom personnalisé (facultatif) :</label>
           <input type="text" class="form-control" id="custom_id" name="custom_id" placeholder="ex: brochure-2025, menu1, etc.">
+        </div>
+
+        <div class="mb-3">
+          <label for="folder" class="form-label">Nom du dossier / groupe :</label>
+          <input type="text" class="form-control" id="folder" name="folder" placeholder="ex: Communication, RH, etc." value="Général">
         </div>
 
         <div class="row">
