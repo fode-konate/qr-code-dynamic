@@ -27,22 +27,21 @@
     </a>
     <div class="text-end me-3 mt-2">
       <button onclick="toggleDarkMode()" class="btn btn-secondary">🌙 Mode sombre</button>
+      <a href="{{ url_for('logout') }}" class="btn btn-outline-danger ms-2">🚪 Déconnexion</a>
     </div>
   </div>
 
   <div class="container mt-5">
-    <a href="{{ url_for('list_qr') }}" class="btn btn-primary">📄 Voir la liste des QR codes</a>
-    <a href="{{ url_for('upload_file') }}" class="btn btn-outline-info ms-2">📤 Uploader un PDF</a>
-
     {% with messages = get_flashed_messages(with_categories=true) %}
       {% if messages %}
-        <div class="mt-4">
-          {% for category, message in messages %}
-            <div class="alert alert-{{ category }}">{{ message }}</div>
-          {% endfor %}
-        </div>
+        {% for category, message in messages %}
+          <div class="alert alert-{{ category }}">{{ message }}</div>
+        {% endfor %}
       {% endif %}
     {% endwith %}
+    
+    <a href="{{ url_for('list_qr') }}" class="btn btn-primary">📄 Voir la liste des QR codes</a>
+    <a href="{{ url_for('upload_file') }}" class="btn btn-outline-info ms-2">📤 Uploader un PDF</a>
 
     <div class="card shadow p-4 mt-4">
       <h1 class="text-center mb-4">Générateur de QR Code Dynamique</h1>
@@ -58,8 +57,8 @@
         </div>
 
         <div class="mb-3">
-          <label for="folder" class="form-label">Nom du dossier / groupe :</label>
-          <input type="text" class="form-control" id="folder" name="folder" placeholder="ex: Communication, RH, etc." value="Général">
+          <label for="folder" class="form-label">Nom du dossier :</label>
+          <input type="text" class="form-control" id="folder" name="folder" value="Général">
         </div>
 
         <div class="row">
