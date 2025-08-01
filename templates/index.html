@@ -1,23 +1,29 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-    <meta charset="UTF-8">
-    <title>Générateur de QR Code</title>
+  <meta charset="UTF-8">
+  <title>Créer un QR Code</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body>
-    <h1>Créer un QR Code avec une URL</h1>
-    <form action="/generate" method="POST">
-        <label>URL cible :</label>
-        <input type="text" name="target_url" required><br>
-        <label>Nom (identifiant personnalisé) :</label>
-        <input type="text" name="custom_id"><br>
-        <label>Dossier :</label>
-        <input type="text" name="folder" value="Général"><br>
-        <label>Couleur de fond :</label>
-        <input type="color" name="back_color" value="#ffffff"><br>
-        <label>Couleur du QR :</label>
-        <input type="color" name="fill_color" value="#000000"><br>
-        <button type="submit">Générer</button>
-    </form>
+  <h1>Créer un QR Code avec une URL</h1>
+  <form action="/" method="POST">
+    <label for="target_url">URL cible :</label>
+    <input type="text" name="target_url" required>
+
+    <label for="custom_id">Nom (identifiant personnalisé) :</label>
+    <input type="text" name="custom_id">
+
+    <label for="folder">Dossier :</label>
+    <input type="text" name="folder" value="Général">
+
+    <label for="bg_color">Couleur de fond :</label>
+    <input type="color" name="bg_color" value="#ffffff">
+
+    <label for="qr_color">Couleur du QR :</label>
+    <input type="color" name="qr_color" value="#000000">
+
+    <button type="submit">Générer</button>
+  </form>
 </body>
 </html>
