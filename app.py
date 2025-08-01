@@ -1,4 +1,4 @@
-from flask import Flask, redirect, request, render_template, send_file, url_for, flash, send_from_directory
+from flask import Flask, redirect, request, render_template, send_file, url_for, flash, send_from_directory, session
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
 import qrcode
@@ -14,32 +14,47 @@ app.config['UPLOAD_FOLDER'] = 'files'
 app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
-# Création du dossier d'upload si inexistant
+# Dossier de fichiers PDF
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
-# Initialisation de la base de données
+# Initialisation de SQLAlchemy
 db = SQLAlchemy(app)
 
-# Modèle de données
+# Définition du modèle
 class URL(db.Model):
-    id = db.Column(db.String(100), primary_key=True)  # correspond à custom_id
-    custom_id = db.Column(db.String(100), unique=True, nullable=False)
+    id = db.Column(db.String(8), primary_key=True)
+    custom_id = db.Column(db.String(100), unique=True, nullable=True)
     target_url = db.Column(db.Text, nullable=False)
     folder = db.Column(db.String(100), default='Général')
     filename = db.Column(db.String(200), nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     deleted = db.Column(db.Boolean, default=False)
 
-# Création des tables
 with app.app_context():
     db.create_all()
 
-# Page d'accueil
+# Middleware d'authentification
+@app.before_request
+def require_login():
+    allowed_paths = ['/login'] + [url_for('redirect_dynamic', unique_id='').rstrip('/')]
+    if request.path.startswith('/redirect/') or request.path.startswith('/pdf/'):
+        return
+    if not session.get('authenticated') and request.path not in allowed_paths:
+        return redirect(url_for('login'))
+
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if request.method == 'POST':
+        if request.form.get('password') == "So!t3chGC":
+            session['authenticated'] = True
+            return redirect(url_for('home'))
+        flash("Mot de passe incorrect.", "danger")
+    return render_template('login.html')
+
 @app.route('/')
 def home():
     return render_template('index.html')
 
-# Génération d'un QR code pointant vers une URL
 @app.route('/generate', methods=['POST'])
 def generate():
     target_url = request.form['target_url']
@@ -48,18 +63,14 @@ def generate():
     folder = request.form.get('folder', 'Général')
     custom_id = request.form.get('custom_id') or str(uuid.uuid4())[:8]
 
-    if URL.query.filter_by(id=custom_id).first():
+    if URL.query.filter_by(custom_id=custom_id).first():
         flash("Cet identifiant est déjà utilisé.", "danger")
         return redirect(url_for('home'))
 
-    dynamic_url = request.host_url + 'redirect/' + custom_id
+    unique_id = str(uuid.uuid4())[:8]
+    dynamic_url = request.host_url + 'redirect/' + unique_id
 
-    url = URL(
-        id=custom_id,
-        custom_id=custom_id,
-        target_url=target_url,
-        folder=folder
-    )
+    url = URL(id=unique_id, custom_id=custom_id, target_url=target_url, folder=folder)
     db.session.add(url)
     db.session.commit()
 
@@ -75,7 +86,6 @@ def generate():
     flash(f"QR Code créé pour l’identifiant : {custom_id}", "success")
     return send_file(buf, mimetype='image/png', as_attachment=True, download_name='qr_code.png')
 
-# Redirection dynamique
 @app.route('/redirect/<unique_id>')
 def redirect_dynamic(unique_id):
     url = URL.query.filter_by(id=unique_id, deleted=False).first()
@@ -83,7 +93,6 @@ def redirect_dynamic(unique_id):
         return redirect(url.target_url)
     return "Lien invalide ou supprimé.", 404
 
-# Upload de PDF + génération de QR
 @app.route('/upload', methods=['GET', 'POST'])
 def upload_file():
     if request.method == 'POST':
@@ -95,7 +104,7 @@ def upload_file():
             flash('Aucun fichier sélectionné.', 'danger')
             return redirect(request.url)
 
-        if URL.query.filter_by(id=custom_id).first():
+        if URL.query.filter_by(custom_id=custom_id).first():
             flash("Cet identifiant est déjà utilisé.", "danger")
             return redirect(request.url)
 
@@ -103,19 +112,14 @@ def upload_file():
         file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
         file.save(file_path)
 
+        unique_id = str(uuid.uuid4())[:8]
         file_url = url_for('download_pdf', filename=filename, _external=True)
 
-        new_url = URL(
-            id=custom_id,
-            custom_id=custom_id,
-            target_url=file_url,
-            folder=folder,
-            filename=filename
-        )
+        new_url = URL(id=unique_id, custom_id=custom_id, target_url=file_url, folder=folder, filename=filename)
         db.session.add(new_url)
         db.session.commit()
 
-        qr = qrcode.make(request.host_url + 'redirect/' + custom_id)
+        qr = qrcode.make(request.host_url + 'redirect/' + unique_id)
         buf = io.BytesIO()
         qr.save(buf, format='PNG')
         buf.seek(0)
@@ -125,12 +129,10 @@ def upload_file():
 
     return render_template('upload.html')
 
-# Téléchargement de PDF
 @app.route('/pdf/<filename>')
 def download_pdf(filename):
     return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
 
-# Mise à jour d'un QR Code existant
 @app.route('/update/<unique_id>', methods=['GET', 'POST'])
 def update(unique_id):
     url = URL.query.filter_by(id=unique_id).first()
@@ -152,7 +154,6 @@ def update(unique_id):
 
     return render_template('update.html', unique_id=unique_id, target_url=url.target_url, folder=url.folder)
 
-# Liste des QR codes
 @app.route('/list')
 def list_qr():
     folder = request.args.get('folder')
@@ -163,7 +164,6 @@ def list_qr():
     folders = [f.folder for f in URL.query.with_entities(URL.folder).distinct()]
     return render_template('list.html', qr_codes=urls, folders=folders, selected_folder=folder)
 
-# Suppression logique
 @app.route('/delete/<unique_id>', methods=['POST'])
 def delete(unique_id):
     url = URL.query.filter_by(id=unique_id).first()
@@ -172,6 +172,12 @@ def delete(unique_id):
         db.session.commit()
         flash('QR Code déplacé dans la corbeille.', 'success')
     return redirect(url_for('list_qr'))
+
+@app.route('/logout')
+def logout():
+    session.clear()
+    flash("Déconnecté avec succès.", "info")
+    return redirect(url_for('login'))
 
 if __name__ == '__main__':
     app.run(debug=True)
