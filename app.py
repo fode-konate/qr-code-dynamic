@@ -1,6 +1,7 @@
 from flask import Flask, redirect, request, render_template, send_file, url_for, flash, send_from_directory, session
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
+from sqlalchemy import text
 import qrcode
 import io
 import os
@@ -11,7 +12,13 @@ from werkzeug.utils import secure_filename
 app = Flask(__name__)
 app.secret_key = 'supersecretkey'
 app.config['UPLOAD_FOLDER'] = 'files'
-app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL')
+
+# ✅ Rend l'URL compatible si Render fournit "postgres://"
+db_url = os.environ.get('DATABASE_URL')
+if db_url and db_url.startswith("postgres://"):
+    db_url = db_url.replace("postgres://", "postgresql://", 1)
+
+app.config['SQLALCHEMY_DATABASE_URI'] = db_url
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 # Dossier de fichiers PDF
@@ -25,14 +32,29 @@ class URL(db.Model):
     id = db.Column(db.String(8), primary_key=True)
     custom_id = db.Column(db.String(100), unique=True, nullable=True)
     target_url = db.Column(db.Text, nullable=False)
-    mode = db.Column(db.String(20), default="redirect")
+    mode = db.Column(db.String(20), default="redirect")  # redirect | landing
     folder = db.Column(db.String(100), default='Général')
     filename = db.Column(db.String(200), nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     deleted = db.Column(db.Boolean, default=False)
-    
-with app.app_context():
+
+def ensure_schema():
+    """Crée les tables si besoin + ajoute la colonne mode si elle manque (sans Shell Render)."""
     db.create_all()
+    try:
+        db.session.execute(text(
+            "ALTER TABLE url ADD COLUMN IF NOT EXISTS mode VARCHAR(20) DEFAULT 'redirect'"
+        ))
+        db.session.execute(text(
+            "UPDATE url SET mode='redirect' WHERE mode IS NULL"
+        ))
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        print("Schema update warning:", e)
+
+with app.app_context():
+    ensure_schema()
 
 # Middleware d'authentification
 @app.before_request
@@ -55,6 +77,7 @@ def login():
 @app.route('/')
 def home():
     return render_template('index.html')
+
 @app.route('/generate', methods=['POST'])
 def generate():
     target_url = request.form['target_url']
@@ -62,6 +85,7 @@ def generate():
     back_color = request.form['back_color']
     folder = request.form.get('folder', 'Général')
     custom_id = request.form.get('custom_id') or str(uuid.uuid4())[:8]
+    mode = request.form.get("mode", "redirect")  # "landing" si checkbox cochée
 
     if URL.query.filter_by(custom_id=custom_id).first():
         flash("Cet identifiant est déjà utilisé.", "danger")
@@ -69,8 +93,6 @@ def generate():
 
     unique_id = str(uuid.uuid4())[:8]
     dynamic_url = request.host_url + 'redirect/' + unique_id
-
-    mode = request.form.get("mode", "redirect")
 
     url = URL(
         id=unique_id,
@@ -94,18 +116,18 @@ def generate():
 
     flash(f"QR Code créé pour l’identifiant : {custom_id}", "success")
     return send_file(buf, mimetype='image/png', as_attachment=True, download_name='qr_code.png')
-    
+
 @app.route('/redirect/<unique_id>')
 def redirect_dynamic(unique_id):
     url = URL.query.filter_by(id=unique_id, deleted=False).first()
     if not url:
         return "Lien invalide ou supprimé.", 404
 
-    # MODE CLASSIQUE (comme avant)
+    # MODE CLASSIQUE : redirection directe
     if url.mode == "redirect":
         return redirect(url.target_url)
 
-    # MODE PAGE HDCA (BONUS)
+    # MODE PAGE HDCA
     if url.mode == "landing":
         documents = [{
             "nom": url.custom_id or url.id,
@@ -132,7 +154,6 @@ def redirect_dynamic(unique_id):
         )
 
     return "Mode invalide", 400
-
 
 @app.route('/upload', methods=['GET', 'POST'])
 def upload_file():
@@ -179,7 +200,6 @@ def upload_file():
 
     return render_template('upload.html')
 
-
 @app.route('/pdf/<filename>')
 def download_pdf(filename):
     return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
@@ -194,11 +214,13 @@ def update(unique_id):
         url.target_url = request.form['new_url']
         url.folder = request.form.get('folder', 'Général')
         file = request.files.get('file')
-        if file:
+
+        if file and file.filename:
             filename = secure_filename(file.filename)
             file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
             url.target_url = url_for('download_pdf', filename=filename, _external=True)
             url.filename = filename
+
         db.session.commit()
         flash("QR Code mis à jour avec succès.", "success")
         return redirect(url_for('list_qr'))
