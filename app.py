@@ -25,18 +25,19 @@ class URL(db.Model):
     id = db.Column(db.String(8), primary_key=True)
     custom_id = db.Column(db.String(100), unique=True, nullable=True)
     target_url = db.Column(db.Text, nullable=False)
+    mode = db.Column(db.String(20), default="redirect")
     folder = db.Column(db.String(100), default='Général')
     filename = db.Column(db.String(200), nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     deleted = db.Column(db.Boolean, default=False)
-
+    
 with app.app_context():
     db.create_all()
 
 # Middleware d'authentification
 @app.before_request
 def require_login():
-    allowed_paths = ['/login'] + [url_for('redirect_dynamic', unique_id='').rstrip('/')]
+    allowed_paths = ['/login']
     if request.path.startswith('/redirect/') or request.path.startswith('/pdf/'):
         return
     if not session.get('authenticated') and request.path not in allowed_paths:
@@ -54,7 +55,6 @@ def login():
 @app.route('/')
 def home():
     return render_template('index.html')
-
 @app.route('/generate', methods=['POST'])
 def generate():
     target_url = request.form['target_url']
@@ -70,7 +70,16 @@ def generate():
     unique_id = str(uuid.uuid4())[:8]
     dynamic_url = request.host_url + 'redirect/' + unique_id
 
-    url = URL(id=unique_id, custom_id=custom_id, target_url=target_url, folder=folder)
+    mode = request.form.get("mode", "redirect")
+
+    url = URL(
+        id=unique_id,
+        custom_id=custom_id,
+        target_url=target_url,
+        folder=folder,
+        mode=mode
+    )
+
     db.session.add(url)
     db.session.commit()
 
@@ -85,13 +94,45 @@ def generate():
 
     flash(f"QR Code créé pour l’identifiant : {custom_id}", "success")
     return send_file(buf, mimetype='image/png', as_attachment=True, download_name='qr_code.png')
-
+    
 @app.route('/redirect/<unique_id>')
 def redirect_dynamic(unique_id):
     url = URL.query.filter_by(id=unique_id, deleted=False).first()
-    if url:
+    if not url:
+        return "Lien invalide ou supprimé.", 404
+
+    # MODE CLASSIQUE (comme avant)
+    if url.mode == "redirect":
         return redirect(url.target_url)
-    return "Lien invalide ou supprimé.", 404
+
+    # MODE PAGE HDCA (BONUS)
+    if url.mode == "landing":
+        documents = [{
+            "nom": url.custom_id or url.id,
+            "url": url.target_url
+        }]
+
+        armoire = {
+            "nom": url.custom_id or "Armoire",
+            "armoire": "Armoire Ventilation",
+            "chantier": "La Manufacture Chanson",
+            "client": "Celsio",
+            "ville": "Paris 75011",
+            "adresse": "124 Av la République"
+        }
+
+        return render_template(
+            "landing.html",
+            brand="HDCA",
+            armoire=armoire,
+            documents=documents,
+            phone1="0784943355",
+            phone2="0664913922",
+            email="hdca.etude@gmail.com"
+        )
+
+    return "Mode invalide", 400
+
 
 @app.route('/upload', methods=['GET', 'POST'])
 def upload_file():
@@ -99,6 +140,7 @@ def upload_file():
         file = request.files.get('file')
         folder = request.form.get('folder', 'Général')
         custom_id = request.form.get('custom_id') or str(uuid.uuid4())[:8]
+        mode = request.form.get("mode", "redirect")
 
         if not file or file.filename == '':
             flash('Aucun fichier sélectionné.', 'danger')
@@ -115,7 +157,15 @@ def upload_file():
         unique_id = str(uuid.uuid4())[:8]
         file_url = url_for('download_pdf', filename=filename, _external=True)
 
-        new_url = URL(id=unique_id, custom_id=custom_id, target_url=file_url, folder=folder, filename=filename)
+        new_url = URL(
+            id=unique_id,
+            custom_id=custom_id,
+            target_url=file_url,
+            folder=folder,
+            filename=filename,
+            mode=mode
+        )
+
         db.session.add(new_url)
         db.session.commit()
 
@@ -128,6 +178,7 @@ def upload_file():
         return send_file(buf, mimetype='image/png', as_attachment=True, download_name='qr_code.png')
 
     return render_template('upload.html')
+
 
 @app.route('/pdf/<filename>')
 def download_pdf(filename):
