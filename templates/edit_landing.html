@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Éditer Landing</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body class="bg-light">
+<div class="container py-4">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h3 class="m-0">Éditer la page (QR: {{ item.custom_id or item.id }})</h3>
+    <a class="btn btn-outline-secondary" href="{{ url_for('list_qr') }}">← Retour</a>
+  </div>
+
+  <form method="POST">
+    <div class="card p-3 mb-3">
+      <h5>Infos fixes (ligne tableau)</h5>
+      <div class="row g-2">
+        <div class="col-md-6">
+          <label class="form-label">Armoire</label>
+          <input class="form-control" name="armoire" value="{{ item.armoire }}">
+        </div>
+        <div class="col-md-6">
+          <label class="form-label">Chantier</label>
+          <input class="form-control" name="chantier" value="{{ item.chantier }}">
+        </div>
+        <div class="col-md-6">
+          <label class="form-label">Client</label>
+          <input class="form-control" name="client" value="{{ item.client }}">
+        </div>
+        <div class="col-md-6">
+          <label class="form-label">Ville</label>
+          <input class="form-control" name="ville" value="{{ item.ville }}">
+        </div>
+        <div class="col-md-12">
+          <label class="form-label">Adresse</label>
+          <input class="form-control" name="adresse" value="{{ item.adresse }}">
+        </div>
+      </div>
+    </div>
+
+    <div class="card p-3 mb-3">
+      <h5>Texte / éléments modifiables</h5>
+      <div class="row g-2">
+        <div class="col-md-4">
+          <label class="form-label">Brand (barre bleue)</label>
+          <input class="form-control" name="brand" value="{{ item.brand }}">
+        </div>
+        <div class="col-md-4">
+          <label class="form-label">Titre onglet (HTML)</label>
+          <input class="form-control" name="page_title" value="{{ item.page_title }}">
+        </div>
+        <div class="col-md-4">
+          <label class="form-label">Titre carte (haut)</label>
+          <input class="form-control" name="header_title" value="{{ item.header_title }}">
+        </div>
+
+        <div class="col-md-6">
+          <label class="form-label">Titre section</label>
+          <input class="form-control" name="section_title" value="{{ item.section_title }}">
+        </div>
+        <div class="col-md-6">
+          <label class="form-label">Footer texte</label>
+          <input class="form-control" name="footer_text" value="{{ item.footer_text }}">
+        </div>
+
+        <div class="col-md-4">
+          <label class="form-label">Téléphone 1</label>
+          <input class="form-control" name="phone1" value="{{ item.phone1 }}">
+        </div>
+        <div class="col-md-4">
+          <label class="form-label">Téléphone 2</label>
+          <input class="form-control" name="phone2" value="{{ item.phone2 }}">
+        </div>
+        <div class="col-md-4">
+          <label class="form-label">Email</label>
+          <input class="form-control" name="email" value="{{ item.email }}">
+        </div>
+      </div>
+    </div>
+
+    <div class="card p-3 mb-3">
+      <div class="d-flex justify-content-between align-items-center">
+        <h5 class="m-0">Documents (liens “Ouvrir”)</h5>
+        <button type="button" class="btn btn-sm btn-outline-primary" onclick="addDoc()">+ Ajouter</button>
+      </div>
+
+      <div id="docs" class="mt-3">
+        {% for d in documents %}
+        <div class="row g-2 align-items-end mb-2 doc-row">
+          <div class="col-md-6">
+            <label class="form-label">Nom</label>
+            <input class="form-control" name="doc_name[]" value="{{ d.nom }}">
+          </div>
+          <div class="col-md-5">
+            <label class="form-label">Lien (Drive/PDF)</label>
+            <input class="form-control" name="doc_url[]" value="{{ d.url }}">
+          </div>
+          <div class="col-md-1">
+            <button type="button" class="btn btn-outline-danger w-100" onclick="this.closest('.doc-row').remove()">X</button>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <button class="btn btn-success">💾 Enregistrer</button>
+  </form>
+</div>
+
+<script>
+function addDoc(){
+  const wrap = document.getElementById('docs');
+  const div = document.createElement('div');
+  div.className = 'row g-2 align-items-end mb-2 doc-row';
+  div.innerHTML = `
+    <div class="col-md-6">
+      <label class="form-label">Nom</label>
+      <input class="form-control" name="doc_name[]" value="">
+    </div>
+    <div class="col-md-5">
+      <label class="form-label">Lien (Drive/PDF)</label>
+      <input class="form-control" name="doc_url[]" value="">
+    </div>
+    <div class="col-md-1">
+      <button type="button" class="btn btn-outline-danger w-100" onclick="this.closest('.doc-row').remove()">X</button>
+    </div>`;
+  wrap.appendChild(div);
+}
+</script>
+</body>
+</html>
