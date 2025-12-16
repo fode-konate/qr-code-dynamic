@@ -7,262 +7,185 @@
 
   <style>
     :root{
-      --brand:#1976d2;
-      --bg:#f6f7fb;
+      --blue:#1976d2;
+      --bg:#f4f6f8;
       --card:#ffffff;
       --text:#111827;
       --muted:#6b7280;
       --border:#e5e7eb;
-      --shadow: 0 10px 30px rgba(17,24,39,.08);
-      --radius: 14px;
       --link:#1a73e8;
     }
 
     *{ box-sizing:border-box; }
     body{
       margin:0;
-      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, "Apple Color Emoji","Segoe UI Emoji";
+      font-family: Arial, Helvetica, sans-serif;
       background:var(--bg);
       color:var(--text);
-      line-height:1.35;
     }
 
-    /* Top bar */
+    /* Header */
     .appbar{
-      position: sticky;
-      top: 0;
-      z-index: 20;
-      background: var(--brand);
-      color: #fff;
-      padding: 16px;
-      display:flex;
-      align-items:center;
-      justify-content:space-between;
-      box-shadow: 0 4px 16px rgba(0,0,0,.12);
-    }
-    .brand{
-      font-weight: 700;
-      letter-spacing:.4px;
-      font-size: 18px;
+      background:var(--blue);
+      color:#fff;
+      padding:16px;
+      font-size:22px;
+      font-weight:600;
     }
 
     .wrap{
-      max-width: 980px;
-      margin: 18px auto 40px;
-      padding: 0 14px;
+      max-width:900px;
+      margin:16px auto;
+      padding:0 12px 24px;
     }
 
     .card{
       background:var(--card);
-      border:1px solid var(--border);
-      border-radius: var(--radius);
-      overflow:hidden;
-      box-shadow: var(--shadow);
+      border-radius:10px;
+      box-shadow:0 4px 10px rgba(0,0,0,.06);
+      padding:16px;
+      margin-bottom:16px;
     }
 
-    .card-header{
-      padding: 18px 18px 14px;
-      border-bottom: 1px solid var(--border);
-    }
     .title{
-      font-size: 22px;
-      font-weight: 800;
-      margin: 0;
-    }
-    .subtitle{
-      margin-top: 6px;
-      color: var(--muted);
-      font-size: 14px;
+      font-size:26px;
+      font-weight:600;
+      margin-bottom:12px;
     }
 
-    .card-body{
-      padding: 16px 18px 18px;
+    /* Infos équipement */
+    .info-grid{
+      display:grid;
+      grid-template-columns:1fr;
+      gap:10px;
     }
 
-    /* Info table */
-    .table-wrap{
-      overflow:auto;
-      border: 1px solid var(--border);
-      border-radius: 12px;
-    }
-    table{
-      width:100%;
-      border-collapse:collapse;
-      min-width: 640px;
-      background: #fff;
-    }
-    thead th{
-      text-align:left;
-      font-size: 12px;
-      text-transform: uppercase;
-      letter-spacing: .08em;
-      color:#374151;
-      background: #f3f4f6;
-      border-bottom: 1px solid var(--border);
-      padding: 12px 12px;
-      white-space: nowrap;
-    }
-    tbody td{
-      padding: 12px 12px;
-      border-bottom: 1px solid var(--border);
-      vertical-align: top;
-      word-break: break-word;
-    }
-    tbody tr:last-child td{
-      border-bottom: none;
+    .info-item{
+      padding:10px 12px;
+      border:1px solid var(--border);
+      border-radius:8px;
+      background:#fafafa;
     }
 
-    /* Section title */
+    .info-label{
+      font-size:13px;
+      color:var(--muted);
+    }
+
+    .info-value{
+      font-size:16px;
+      font-weight:500;
+      margin-top:2px;
+    }
+
+    /* Section documents */
     .section-title{
-      display:flex;
-      align-items:center;
-      justify-content:space-between;
-      margin: 18px 0 10px;
-      gap: 12px;
-    }
-    .section-title h2{
-      margin:0;
-      font-size: 16px;
-      font-weight: 800;
-    }
-    .pill{
-      font-size: 12px;
-      color: #1f2937;
-      background: #eef2ff;
-      border: 1px solid #e0e7ff;
-      padding: 6px 10px;
-      border-radius: 999px;
-      white-space: nowrap;
+      font-size:22px;
+      margin:18px 0 10px;
+      font-weight:600;
     }
 
-    /* Documents table */
-    .doc a{
-      color: var(--link);
-      text-decoration: none;
-      font-weight: 700;
-    }
-    .doc a:hover{ text-decoration: underline; }
-    .btn-open{
-      display:inline-flex;
+    .doc{
+      display:flex;
+      justify-content:space-between;
       align-items:center;
-      justify-content:center;
-      padding: 8px 10px;
-      border-radius: 10px;
-      border: 1px solid var(--border);
-      background: #fff;
-      font-weight: 700;
-      gap: 6px;
+      padding:12px;
+      border:1px solid var(--border);
+      border-radius:8px;
+      margin-bottom:10px;
+      background:#fff;
     }
-    .btn-open:hover{
-      background:#f9fafb;
+
+    .doc-name{
+      font-size:16px;
+      font-weight:500;
+    }
+
+    .doc a{
+      background:var(--link);
+      color:#fff;
+      padding:8px 14px;
+      border-radius:6px;
+      text-decoration:none;
+      font-size:14px;
+      white-space:nowrap;
     }
 
     /* Footer */
     .footer{
-      margin-top: 18px;
-      padding-top: 14px;
-      border-top: 1px dashed var(--border);
-      color: var(--muted);
-      font-size: 13px;
       text-align:center;
+      font-size:14px;
+      color:var(--muted);
+      margin-top:18px;
     }
-    .footer a{
-      color: var(--link);
-      text-decoration:none;
-      font-weight: 700;
-    }
-    .footer a:hover{ text-decoration: underline; }
 
-    /* Mobile */
-    @media (max-width: 520px){
-      .title{ font-size: 20px; }
-      .wrap{ margin-top: 12px; }
-      .card-body{ padding: 14px; }
-      table{ min-width: 560px; }
+    .footer a{
+      color:var(--link);
+      text-decoration:none;
+      font-weight:500;
     }
   </style>
 </head>
 
 <body>
-  <div class="appbar">
-    <div class="brand">{{ brand or "HDCA" }}</div>
-  </div>
+
+  <div class="appbar">{{ brand or "HDCA" }}</div>
 
   <div class="wrap">
+
+    <!-- FICHE ÉQUIPEMENT -->
     <div class="card">
-      <div class="card-header">
-        <h1 class="title">{{ armoire.nom }}</h1>
-        <div class="subtitle">Fiche d’équipement & documents</div>
-      </div>
+      <div class="title">{{ armoire.nom }}</div>
 
-      <div class="card-body">
-        <div class="table-wrap" aria-label="Informations">
-          <table>
-            <thead>
-              <tr>
-                <th>Armoire</th>
-                <th>Chantier</th>
-                <th>Client</th>
-                <th>Ville</th>
-                <th>Adresse</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td>{{ armoire.armoire }}</td>
-                <td>{{ armoire.chantier }}</td>
-                <td>{{ armoire.client }}</td>
-                <td>{{ armoire.ville }}</td>
-                <td>{{ armoire.adresse }}</td>
-              </tr>
-            </tbody>
-          </table>
+      <div class="info-grid">
+        <div class="info-item">
+          <div class="info-label">Armoire</div>
+          <div class="info-value">{{ armoire.armoire }}</div>
         </div>
 
-        <div class="section-title">
-          <h2>{{ section_title or "Documents:" }}</h2>
-          <div class="pill">{{ documents|length }} fichier(s)</div>
+        <div class="info-item">
+          <div class="info-label">Chantier</div>
+          <div class="info-value">{{ armoire.chantier }}</div>
         </div>
 
-        <div class="table-wrap doc" aria-label="Documents">
-          <table>
-            <thead>
-              <tr>
-                <th style="width:70px;">#</th>
-                <th>Nom</th>
-                <th style="width:140px;">Lien</th>
-              </tr>
-            </thead>
-            <tbody>
-              {% for doc in documents %}
-                <tr>
-                  <td>{{ loop.index }}</td>
-                  <td>{{ doc.nom }}</td>
-                  <td>
-                    <a class="btn-open" href="{{ doc.url }}" target="_blank" rel="noopener">
-                      Ouvrir ↗
-                    </a>
-                  </td>
-                </tr>
-              {% endfor %}
-              {% if documents|length == 0 %}
-                <tr>
-                  <td colspan="3" style="color:#6b7280;">Aucun document configuré.</td>
-                </tr>
-              {% endif %}
-            </tbody>
-          </table>
+        <div class="info-item">
+          <div class="info-label">Client</div>
+          <div class="info-value">{{ armoire.client }}</div>
         </div>
 
-        <div class="footer">
-          {% if footer_text %}{{ footer_text }}<br>{% endif %}
-          {{ brand or "HDCA" }}
-          {% if phone1 %}- <a href="tel:{{ phone1 }}">{{ phone1 }}</a>{% endif %}
-          {% if phone2 %} / <a href="tel:{{ phone2 }}">{{ phone2 }}</a>{% endif %}
-          {% if email %}- <a href="mailto:{{ email }}">{{ email }}</a>{% endif %}
+        <div class="info-item">
+          <div class="info-label">Ville</div>
+          <div class="info-value">{{ armoire.ville }}</div>
+        </div>
+
+        <div class="info-item">
+          <div class="info-label">Adresse</div>
+          <div class="info-value">{{ armoire.adresse }}</div>
         </div>
       </div>
     </div>
+
+    <!-- DOCUMENTS -->
+    <div class="card">
+      <div class="section-title">{{ section_title }}</div>
+
+      {% for doc in documents %}
+        <div class="doc">
+          <div class="doc-name">{{ doc.nom }}</div>
+          <a href="{{ doc.url }}" target="_blank" rel="noopener">Ouvrir</a>
+        </div>
+      {% endfor %}
+    </div>
+
+    <!-- FOOTER -->
+    <div class="footer">
+      {{ footer_text }}<br>
+      <a href="tel:{{ phone1 }}">{{ phone1 }}</a> /
+      <a href="tel:{{ phone2 }}">{{ phone2 }}</a> –
+      <a href="mailto:{{ email }}">{{ email }}</a>
+    </div>
+
   </div>
+
 </body>
 </html>
